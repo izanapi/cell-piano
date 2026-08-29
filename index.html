@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+<meta name="theme-color" content="#111111" />
+<title>DOUBLE KEYS</title>
+<style>
+  :root{
+    --bg:#101010;
+    --panel:#171717;
+    --line:#2a2a2a;
+    --text:#f2f2f2;
+    --muted:#858585;
+    --accent:#ffd84a;
+    --white:#f4f2eb;
+    --black:#202020;
+  }
+
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+
+  html,body{
+    margin:0;
+    width:100%;
+    min-height:100%;
+    background:var(--bg);
+    color:var(--text);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    overflow-x:hidden;
+    touch-action:none;
+  }
+
+  body{
+    display:flex;
+    justify-content:center;
+  }
+
+  .app{
+    width:min(100vw,520px);
+    min-height:100dvh;
+    display:flex;
+    flex-direction:column;
+    padding:
+      max(14px, env(safe-area-inset-top))
+      12px
+      max(14px, env(safe-area-inset-bottom));
+    gap:12px;
+  }
+
+  .topbar{
+    height:38px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    border-bottom:1px solid var(--line);
+  }
+
+  .title{
+    font-size:13px;
+    letter-spacing:.14em;
+  }
+
+  .status{
+    font-size:11px;
+    color:var(--muted);
+  }
+
+  .keyboard{
+    position:relative;
+    height:210px;
+    border:1px solid var(--line);
+    background:#090909;
+    overflow:hidden;
+    border-radius:8px;
+    user-select:none;
+  }
+
+  .white-keys{
+    position:absolute;
+    inset:0;
+    display:grid;
+    grid-template-columns:repeat(8,1fr);
+  }
+
+  .key.white{
+    position:relative;
+    background:var(--white);
+    border-right:1px solid #aaa;
+  }
+
+  .key.white:last-child{ border-right:none; }
+
+  .key.white.active{
+    background:var(--accent);
+  }
+
+  .black-key{
+    position:absolute;
+    top:0;
+    width:8.3%;
+    height:61%;
+    transform:translateX(-50%);
+    background:var(--black);
+    border:1px solid #080808;
+    border-radius:0 0 4px 4px;
+    z-index:3;
+    box-shadow:0 3px 0 rgba(0,0,0,.45);
+  }
+
+  .black-key.active{
+    background:var(--accent);
+    box-shadow:none;
+  }
+
+  .kbd-label{
+    position:absolute;
+    left:8px;
+    bottom:7px;
+    z-index:5;
+    color:#777;
+    font-size:9px;
+    letter-spacing:.08em;
+    pointer-events:none;
+  }
+
+  .controls{
+    display:grid;
+    grid-template-columns:1fr 1fr 1fr;
+    gap:8px;
+  }
+
+  button{
+    appearance:none;
+    border:1px solid var(--line);
+    background:var(--panel);
+    color:var(--text);
+    border-radius:7px;
+    padding:11px 8px;
+    font:inherit;
+    font-size:11px;
+  }
+
+  button:active,
+  button.on{
+    border-color:var(--accent);
+    color:var(--accent);
+  }
+
+  .future{
+    flex:1;
+    min-height:180px;
+    border:1px dashed #292929;
+    border-radius:8px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    color:#555;
+    font-size:11px;
+    letter-spacing:.08em;
+  }
+
+  .footer{
+    color:#555;
+    font-size:9px;
+    letter-spacing:.08em;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+  }
+
+  @media (max-height:760px){
+    .keyboard{ height:180px; }
+    .future{ min-height:90px; }
+  }
+</style>
+</head>
+
+<body>
+<div class="app">
+  <div class="topbar">
+    <div class="title">DOUBLE KEYS</div>
+    <div class="status" id="status">READY</div>
+  </div>
+
+  <div class="keyboard" id="keyboardA" data-base="48">
+    <div class="white-keys"></div>
+    <div class="kbd-label">LOW</div>
+  </div>
+
+  <div class="keyboard" id="keyboardB" data-base="60">
+    <div class="white-keys"></div>
+    <div class="kbd-label">HIGH</div>
+  </div>
+
+  <div class="controls">
+    <button id="waveBtn">WAVE: SINE</button>
+    <button id="holdBtn">HOLD: OFF</button>
+    <button id="panicBtn">STOP</button>
+  </div>
+
+  <div class="future">
+    FUTURE MODULES
+  </div>
+
+  <div class="footer">
+    <span>DOUBLE KEYS</span>
+    <span>VER 0.1</span>
+  </div>
+</div>
+
+<script>
+let ctx = null;
+let master = null;
+let hold = false;
+let waveIndex = 0;
+const waveTypes = ["sine","triangle","square","sawtooth"];
+const activeVoices = new Map();
+
+function ensureAudio(){
+  if(!ctx){
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+    master = ctx.createGain();
+    master.gain.value = 0.22;
+    master.connect(ctx.destination);
+  }
+  if(ctx.state === "suspended") ctx.resume();
+  document.getElementById("status").textContent = "AUDIO ON";
+}
+
+function midiToHz(m){
+  return 440 * Math.pow(2, (m - 69) / 12);
+}
+
+function noteOn(id, midi, el){
+  ensureAudio();
+  if(activeVoices.has(id)) return;
+
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+
+  osc.type = waveTypes[waveIndex];
+  osc.frequency.value = midiToHz(midi);
+
+  const now = ctx.currentTime;
+  gain.gain.setValueAtTime(0.0001, now);
+  gain.gain.exponentialRampToValueAtTime(0.24, now + 0.012);
+
+  osc.connect(gain);
+  gain.connect(master);
+  osc.start();
+
+  activeVoices.set(id,{osc,gain,el});
+  el.classList.add("active");
+}
+
+function noteOff(id){
+  const v = activeVoices.get(id);
+  if(!v || hold) return;
+
+  const now = ctx.currentTime;
+  v.gain.gain.cancelScheduledValues(now);
+  v.gain.gain.setTargetAtTime(0.0001, now, 0.035);
+  v.osc.stop(now + 0.18);
+  v.el.classList.remove("active");
+  activeVoices.delete(id);
+}
+
+function stopAll(){
+  const now = ctx ? ctx.currentTime : 0;
+  for(const [id,v] of activeVoices){
+    if(ctx){
+      v.gain.gain.cancelScheduledValues(now);
+      v.gain.gain.setTargetAtTime(0.0001, now, 0.025);
+      try{ v.osc.stop(now + 0.12); }catch(e){}
+    }
+    v.el.classList.remove("active");
+  }
+  activeVoices.clear();
+}
+
+const whitePattern = [0,2,4,5,7,9,11,12];
+const blackPattern = [
+  {semi:1,pos:12.5},
+  {semi:3,pos:25},
+  {semi:6,pos:50},
+  {semi:8,pos:62.5},
+  {semi:10,pos:75}
+];
+
+function buildKeyboard(root){
+  const base = Number(root.dataset.base);
+  const whites = root.querySelector(".white-keys");
+
+  whitePattern.forEach((semi,i)=>{
+    const key = document.createElement("div");
+    key.className = "key white";
+    key.dataset.midi = base + semi;
+    key.dataset.keyid = root.id + "_w_" + i;
+    whites.appendChild(key);
+    bindKey(key);
+  });
+
+  blackPattern.forEach((obj,i)=>{
+    const key = document.createElement("div");
+    key.className = "black-key";
+    key.style.left = obj.pos + "%";
+    key.dataset.midi = base + obj.semi;
+    key.dataset.keyid = root.id + "_b_" + i;
+    root.appendChild(key);
+    bindKey(key);
+  });
+}
+
+function bindKey(el){
+  const start = (ev)=>{
+    ev.preventDefault();
+    try{ el.setPointerCapture(ev.pointerId); }catch(e){}
+    noteOn(el.dataset.keyid, Number(el.dataset.midi), el);
+  };
+
+  const end = (ev)=>{
+    ev.preventDefault();
+    noteOff(el.dataset.keyid);
+  };
+
+  el.addEventListener("pointerdown", start);
+  el.addEventListener("pointerup", end);
+  el.addEventListener("pointercancel", end);
+  el.addEventListener("pointerleave", (ev)=>{
+    if(ev.buttons) end(ev);
+  });
+}
+
+buildKeyboard(document.getElementById("keyboardA"));
+buildKeyboard(document.getElementById("keyboardB"));
+
+document.getElementById("waveBtn").addEventListener("click",()=>{
+  waveIndex = (waveIndex + 1) % waveTypes.length;
+  document.getElementById("waveBtn").textContent =
+    "WAVE: " + waveTypes[waveIndex].toUpperCase();
+});
+
+document.getElementById("holdBtn").addEventListener("click",(e)=>{
+  hold = !hold;
+  e.currentTarget.textContent = "HOLD: " + (hold ? "ON" : "OFF");
+  e.currentTarget.classList.toggle("on",hold);
+  if(!hold) stopAll();
+});
+
+document.getElementById("panicBtn").addEventListener("click",()=>{
+  hold = false;
+  const hb = document.getElementById("holdBtn");
+  hb.textContent = "HOLD: OFF";
+  hb.classList.remove("on");
+  stopAll();
+});
+</script>
+</body>
+</html>
