@@ -3,357 +3,195 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
-<meta name="theme-color" content="#111111" />
-<title>DOUBLE KEYS</title>
+<meta name="theme-color" content="#11130f" />
+<title>POCKET CHORD</title>
 <style>
-  :root{
-    --bg:#101010;
-    --panel:#171717;
-    --line:#2a2a2a;
-    --text:#f2f2f2;
-    --muted:#858585;
-    --accent:#ffd84a;
-    --white:#f4f2eb;
-    --black:#202020;
-  }
-
-  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-
-  html,body{
-    margin:0;
-    width:100%;
-    min-height:100%;
-    background:var(--bg);
-    color:var(--text);
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-    overflow-x:hidden;
-    touch-action:none;
-  }
-
-  body{
-    display:flex;
-    justify-content:center;
-  }
-
-  .app{
-    width:min(100vw,520px);
-    min-height:100dvh;
-    display:flex;
-    flex-direction:column;
-    padding:
-      max(14px, env(safe-area-inset-top))
-      12px
-      max(14px, env(safe-area-inset-bottom));
-    gap:12px;
-  }
-
-  .topbar{
-    height:38px;
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    border-bottom:1px solid var(--line);
-  }
-
-  .title{
-    font-size:13px;
-    letter-spacing:.14em;
-  }
-
-  .status{
-    font-size:11px;
-    color:var(--muted);
-  }
-
-  .keyboard{
-    position:relative;
-    height:210px;
-    border:1px solid var(--line);
-    background:#090909;
-    overflow:hidden;
-    border-radius:8px;
-    user-select:none;
-  }
-
-  .white-keys{
-    position:absolute;
-    inset:0;
-    display:grid;
-    grid-template-columns:repeat(8,1fr);
-  }
-
-  .key.white{
-    position:relative;
-    background:var(--white);
-    border-right:1px solid #aaa;
-  }
-
-  .key.white:last-child{ border-right:none; }
-
-  .key.white.active{
-    background:var(--accent);
-  }
-
-  .black-key{
-    position:absolute;
-    top:0;
-    width:8.3%;
-    height:61%;
-    transform:translateX(-50%);
-    background:var(--black);
-    border:1px solid #080808;
-    border-radius:0 0 4px 4px;
-    z-index:3;
-    box-shadow:0 3px 0 rgba(0,0,0,.45);
-  }
-
-  .black-key.active{
-    background:var(--accent);
-    box-shadow:none;
-  }
-
-  .kbd-label{
-    position:absolute;
-    left:8px;
-    bottom:7px;
-    z-index:5;
-    color:#777;
-    font-size:9px;
-    letter-spacing:.08em;
-    pointer-events:none;
-  }
-
-  .controls{
-    display:grid;
-    grid-template-columns:1fr 1fr 1fr;
-    gap:8px;
-  }
-
-  button{
-    appearance:none;
-    border:1px solid var(--line);
-    background:var(--panel);
-    color:var(--text);
-    border-radius:7px;
-    padding:11px 8px;
-    font:inherit;
-    font-size:11px;
-  }
-
-  button:active,
-  button.on{
-    border-color:var(--accent);
-    color:var(--accent);
-  }
-
-  .future{
-    flex:1;
-    min-height:180px;
-    border:1px dashed #292929;
-    border-radius:8px;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    color:#555;
-    font-size:11px;
-    letter-spacing:.08em;
-  }
-
-  .footer{
-    color:#555;
-    font-size:9px;
-    letter-spacing:.08em;
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-  }
-
-  @media (max-height:760px){
-    .keyboard{ height:180px; }
-    .future{ min-height:90px; }
-  }
+:root{
+  --bg:#10120f; --panel:#171a15; --line:#30342b; --text:#ece9d8; --muted:#818676;
+  --accent:#d8f065; --key:#ddd6be; --keyText:#24241e; --dark:#272a23; --glow:rgba(216,240,101,.25);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;touch-action:none;overscroll-behavior:none}
+body{display:flex;justify-content:center;min-height:100dvh}
+.app{width:min(100vw,520px);min-height:100dvh;padding:max(14px,env(safe-area-inset-top)) 12px max(14px,env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:10px}
+.topbar{display:flex;align-items:center;justify-content:space-between;height:34px;border-bottom:1px solid var(--line)}
+.logo{font-size:13px;letter-spacing:.16em}.state{font-size:10px;color:var(--muted)}
+.screen{background:#141710;border:1px solid #3b4033;border-radius:10px;padding:12px;box-shadow:inset 0 0 28px rgba(0,0,0,.35)}
+.readouts{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}.cell{border:1px solid #33382d;border-radius:6px;padding:9px 8px;min-height:58px}
+.label{font-size:9px;color:var(--muted);letter-spacing:.1em}.value{font-size:17px;margin-top:6px}.tiny{font-size:11px}
+.clock{margin-top:10px;display:flex;align-items:center;justify-content:space-between}.pulse{display:flex;gap:7px}.dot{width:7px;height:7px;border-radius:50%;background:#34382f}.dot.on{background:var(--accent);box-shadow:0 0 10px var(--glow)}
+.controls{display:grid;grid-template-columns:repeat(5,1fr);gap:7px}
+button{appearance:none;border:1px solid var(--line);background:var(--panel);color:var(--text);border-radius:7px;padding:10px 5px;font:inherit;font-size:10px;min-height:42px}
+button.active,button:active{border-color:var(--accent);color:var(--accent)}
+.keyboard-wrap{margin-top:auto;border:1px solid var(--line);border-radius:11px;background:#121410;padding:12px 10px 14px;position:relative;overflow:hidden}
+.kbd-title{display:flex;justify-content:space-between;color:var(--muted);font-size:9px;margin-bottom:11px;letter-spacing:.08em}
+.keys{display:grid;grid-template-columns:repeat(7,1fr);gap:9px 7px;align-items:center}
+.key{position:relative;aspect-ratio:1/1;border-radius:50%;border:2px solid #5b5d51;background:radial-gradient(circle at 35% 30%,#f1ead2 0 18%,var(--key) 55%,#b7ae94 100%);color:var(--keyText);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;box-shadow:0 3px 0 #615d4f, inset 0 0 0 2px rgba(255,255,255,.16);user-select:none}
+.key:nth-child(n+8){transform:translateX(3.5%)}
+.key.active{background:var(--accent);box-shadow:0 0 18px var(--glow),0 2px 0 #71812f;transform:translateY(2px)}
+.key:nth-child(n+8).active{transform:translate(3.5%,2px)}
+.note-sub{position:absolute;bottom:4px;font-size:7px;font-weight:500;opacity:.55}
+.recbar{display:flex;gap:7px}.recbar button{flex:1}.recDot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#b84b45;margin-right:5px}.rec-on .recDot{background:#ff5149;box-shadow:0 0 8px rgba(255,81,73,.6)}
+.footer{font-size:9px;color:#555b50;display:flex;justify-content:space-between;padding:0 2px}
+@media(max-height:760px){.cell{min-height:50px;padding:7px}.value{font-size:15px}.controls button{min-height:38px}.keys{gap:7px 6px}.keyboard-wrap{padding-top:9px}}
 </style>
 </head>
+<body><div class="app">
+<div class="topbar"><div class="logo">POCKET CHORD</div><div class="state" id="state">TOUCH TO START</div></div>
 
-<body>
-<div class="app">
-  <div class="topbar">
-    <div class="title">DOUBLE KEYS</div>
-    <div class="status" id="status">READY</div>
+<div class="screen">
+  <div class="readouts">
+    <div class="cell" id="keyCell"><div class="label">KEY</div><div class="value" id="keyVal">C</div></div>
+    <div class="cell" id="scaleCell"><div class="label">SCALE</div><div class="value tiny" id="scaleVal">DORIAN</div></div>
+    <div class="cell" id="bpmCell"><div class="label">BPM</div><div class="value" id="bpmVal">84</div></div>
+    <div class="cell"><div class="label">GRID</div><div class="value tiny" id="gridVal">1/8</div></div>
+    <div class="cell"><div class="label">VOICE</div><div class="value tiny" id="voiceVal">OPEN</div></div>
+    <div class="cell"><div class="label">MEMORY</div><div class="value tiny" id="memoryVal">1 STEP</div></div>
   </div>
-
-  <div class="keyboard" id="keyboardA" data-base="48">
-    <div class="white-keys"></div>
-    <div class="kbd-label">LOW</div>
-  </div>
-
-  <div class="keyboard" id="keyboardB" data-base="60">
-    <div class="white-keys"></div>
-    <div class="kbd-label">HIGH</div>
-  </div>
-
-  <div class="controls">
-    <button id="waveBtn">WAVE: SINE</button>
-    <button id="holdBtn">HOLD: OFF</button>
-    <button id="panicBtn">STOP</button>
-  </div>
-
-  <div class="future">
-    FUTURE MODULES
-  </div>
-
-  <div class="footer">
-    <span>DOUBLE KEYS</span>
-    <span>VER 0.1</span>
-  </div>
+  <div class="clock"><span class="label">CLOCK</span><div class="pulse"><i class="dot"></i><i class="dot"></i><i class="dot"></i><i class="dot"></i></div></div>
 </div>
 
+<div class="controls">
+  <button id="keyBtn">KEY +</button><button id="scaleBtn">SCALE</button><button id="bpmBtn">BPM</button><button id="voiceBtn">VOICE</button><button id="memoryBtn">MEMORY</button>
+</div>
+<div class="controls">
+  <button id="gridBtn">GRID</button><button id="sustainBtn">SUSTAIN</button><button id="humanBtn" class="active">SOFT Q</button><button id="stopBtn">STOP</button><button id="clearBtn">CLEAR</button>
+</div>
+
+<div class="recbar"><button id="recBtn"><span class="recDot"></span>REC</button><button id="saveBtn" disabled>SAVE TAKE</button></div>
+
+<div class="keyboard-wrap">
+  <div class="kbd-title"><span>PLAY FIELD</span><span id="rangeLabel">C4 — C6</span></div>
+  <div class="keys" id="keys"></div>
+</div>
+<div class="footer"><span>MAGNET / QUANTIZED</span><span>VER 0.4</span></div>
+</div>
 <script>
-let ctx = null;
-let master = null;
-let hold = false;
-let waveIndex = 0;
-const waveTypes = ["sine","triangle","square","sawtooth"];
-const activeVoices = new Map();
-
-function ensureAudio(){
-  if(!ctx){
-    ctx = new (window.AudioContext || window.webkitAudioContext)();
-    master = ctx.createGain();
-    master.gain.value = 0.22;
-    master.connect(ctx.destination);
-  }
-  if(ctx.state === "suspended") ctx.resume();
-  document.getElementById("status").textContent = "AUDIO ON";
-}
-
-function midiToHz(m){
-  return 440 * Math.pow(2, (m - 69) / 12);
-}
-
-function noteOn(id, midi, el){
-  ensureAudio();
-  if(activeVoices.has(id)) return;
-
-  const osc = ctx.createOscillator();
-  const gain = ctx.createGain();
-
-  osc.type = waveTypes[waveIndex];
-  osc.frequency.value = midiToHz(midi);
-
-  const now = ctx.currentTime;
-  gain.gain.setValueAtTime(0.0001, now);
-  gain.gain.exponentialRampToValueAtTime(0.24, now + 0.012);
-
-  osc.connect(gain);
-  gain.connect(master);
-  osc.start();
-
-  activeVoices.set(id,{osc,gain,el});
-  el.classList.add("active");
-}
-
-function noteOff(id){
-  const v = activeVoices.get(id);
-  if(!v || hold) return;
-
-  const now = ctx.currentTime;
-  v.gain.gain.cancelScheduledValues(now);
-  v.gain.gain.setTargetAtTime(0.0001, now, 0.035);
-  v.osc.stop(now + 0.18);
-  v.el.classList.remove("active");
-  activeVoices.delete(id);
-}
-
-function stopAll(){
-  const now = ctx ? ctx.currentTime : 0;
-  for(const [id,v] of activeVoices){
-    if(ctx){
-      v.gain.gain.cancelScheduledValues(now);
-      v.gain.gain.setTargetAtTime(0.0001, now, 0.025);
-      try{ v.osc.stop(now + 0.12); }catch(e){}
-    }
-    v.el.classList.remove("active");
-  }
-  activeVoices.clear();
-}
-
-const whitePattern = [0,2,4,5,7,9,11,12];
-const blackPattern = [
-  {semi:1,pos:12.5},
-  {semi:3,pos:25},
-  {semi:6,pos:50},
-  {semi:8,pos:62.5},
-  {semi:10,pos:75}
+let ctx, master, recDest, recorder, chunks=[];
+let started=false, recording=false, sustain=false, softQ=true;
+let keyIndex=0, scaleIndex=1, bpm=84, gridIndex=1, voiceIndex=2, memoryIndex=1;
+let active=new Map(), memory=[];
+const roots=['C','C#','D','Eb','E','F','F#','G','Ab','A','Bb','B'];
+const scales=[
+ {name:'MAJOR',steps:[0,2,4,5,7,9,11]},
+ {name:'DORIAN',steps:[0,2,3,5,7,9,10]},
+ {name:'MINOR',steps:[0,2,3,5,7,8,10]},
+ {name:'PENTA',steps:[0,2,4,7,9]},
+ {name:'WHOLE',steps:[0,2,4,6,8,10]}
 ];
-
-function buildKeyboard(root){
-  const base = Number(root.dataset.base);
-  const whites = root.querySelector(".white-keys");
-
-  whitePattern.forEach((semi,i)=>{
-    const key = document.createElement("div");
-    key.className = "key white";
-    key.dataset.midi = base + semi;
-    key.dataset.keyid = root.id + "_w_" + i;
-    whites.appendChild(key);
-    bindKey(key);
-  });
-
-  blackPattern.forEach((obj,i)=>{
-    const key = document.createElement("div");
-    key.className = "black-key";
-    key.style.left = obj.pos + "%";
-    key.dataset.midi = base + obj.semi;
-    key.dataset.keyid = root.id + "_b_" + i;
-    root.appendChild(key);
-    bindKey(key);
-  });
+const grids=[{name:'1/4',div:1},{name:'1/8',div:2},{name:'1/16',div:4},{name:'FREE',div:0}];
+const voices=[
+ {name:'SINGLE',offs:[0]},
+ {name:'FIFTH',offs:[0,4]},
+ {name:'OPEN',offs:[0,4,8]},
+ {name:'SPREAD',offs:[0,4,8,11]},
+ {name:'CLUSTER',offs:[0,1,2]}
+];
+const memories=[0,1,2,3];
+function ensureAudio(){
+ if(!ctx){
+  ctx=new (window.AudioContext||window.webkitAudioContext)();
+  master=ctx.createGain(); master.gain.value=.34; master.connect(ctx.destination);
+  recDest=ctx.createMediaStreamDestination(); master.connect(recDest);
+ }
+ if(ctx.state==='suspended')ctx.resume();
+ started=true; document.getElementById('state').textContent='AUDIO ON';
 }
-
-function bindKey(el){
-  const start = (ev)=>{
-    ev.preventDefault();
-    try{ el.setPointerCapture(ev.pointerId); }catch(e){}
-    noteOn(el.dataset.keyid, Number(el.dataset.midi), el);
-  };
-
-  const end = (ev)=>{
-    ev.preventDefault();
-    noteOff(el.dataset.keyid);
-  };
-
-  el.addEventListener("pointerdown", start);
-  el.addEventListener("pointerup", end);
-  el.addEventListener("pointercancel", end);
-  el.addEventListener("pointerleave", (ev)=>{
-    if(ev.buttons) end(ev);
-  });
+function midiHz(m){return 440*Math.pow(2,(m-69)/12)}
+function scaleMidi(index){
+ const sc=scales[scaleIndex].steps, degree=index%sc.length, oct=Math.floor(index/sc.length);
+ return 60 + keyIndex + sc[degree] + 12*oct;
 }
+function scaleName(index){
+ let m=scaleMidi(index); return roots[(m%12+12)%12] + Math.floor(m/12-1);
+}
+function currentGridSec(){
+ const g=grids[gridIndex].div; if(!g)return 0; return 60/bpm/g;
+}
+function quantizedTime(){
+ const gs=currentGridSec(); if(!gs)return ctx.currentTime;
+ const t=ctx.currentTime, next=Math.ceil(t/gs)*gs;
+ if(!softQ)return next;
+ return (next-t<gs*.42)?next:t;
+}
+function makeVoice(midi,start,dur=.7,level=.12){
+ const osc=ctx.createOscillator(), gain=ctx.createGain(), filt=ctx.createBiquadFilter();
+ osc.type='triangle'; osc.frequency.value=midiHz(midi);
+ filt.type='lowpass'; filt.frequency.value=1800; filt.Q.value=.6;
+ gain.gain.setValueAtTime(.0001,start); gain.gain.exponentialRampToValueAtTime(level,start+.018);
+ gain.gain.exponentialRampToValueAtTime(.0001,start+dur);
+ osc.connect(filt); filt.connect(gain); gain.connect(master); osc.start(start); osc.stop(start+dur+.05);
+}
+function triggerKey(index,el){
+ ensureAudio();
+ const base=scaleMidi(index), scLen=scales[scaleIndex].steps.length, start=quantizedTime();
+ const offs=voices[voiceIndex].offs;
+ offs.forEach((d,i)=>{
+   let targetIndex=index+d; let midi=scaleMidi(targetIndex);
+   makeVoice(midi,start+i*.018,.82,.11/(1+i*.08));
+ });
+ if(memories[memoryIndex]>0){
+   memory.slice(-memories[memoryIndex]).forEach((m,j)=>{
+     makeVoice(m,start+.012*(j+1),.62,.055/(j+1));
+   });
+ }
+ memory.push(base); if(memory.length>8)memory.shift();
+ el.classList.add('active'); setTimeout(()=>el.classList.remove('active'),220);
+}
+function buildKeys(){
+ const wrap=document.getElementById('keys'); wrap.innerHTML='';
+ const count=scales[scaleIndex].steps.length*2;
+ for(let i=0;i<count;i++){
+  const b=document.createElement('div'); b.className='key'; b.dataset.index=i;
+  const nm=scaleName(i); b.innerHTML=`${nm.replace(/[0-9]/g,'')}<span class="note-sub">${nm}</span>`;
+  b.addEventListener('pointerdown',e=>{e.preventDefault();triggerKey(i,b)});
+  wrap.appendChild(b);
+ }
+ document.getElementById('rangeLabel').textContent=scaleName(0)+' — '+scaleName(count-1);
+}
+function refresh(){
+ document.getElementById('keyVal').textContent=roots[keyIndex];
+ document.getElementById('scaleVal').textContent=scales[scaleIndex].name;
+ document.getElementById('bpmVal').textContent=bpm;
+ document.getElementById('gridVal').textContent=grids[gridIndex].name;
+ document.getElementById('voiceVal').textContent=voices[voiceIndex].name;
+ document.getElementById('memoryVal').textContent=memories[memoryIndex]===0?'OFF':memories[memoryIndex]+' STEP';
+ buildKeys();
+}
+keyBtn.onclick=()=>{keyIndex=(keyIndex+1)%12;memory=[];refresh()};
+scaleBtn.onclick=()=>{scaleIndex=(scaleIndex+1)%scales.length;memory=[];refresh()};
+bpmBtn.onclick=()=>{bpm+=4;if(bpm>120)bpm=64;refresh()};
+gridBtn.onclick=()=>{gridIndex=(gridIndex+1)%grids.length;refresh()};
+voiceBtn.onclick=()=>{voiceIndex=(voiceIndex+1)%voices.length;refresh()};
+memoryBtn.onclick=()=>{memoryIndex=(memoryIndex+1)%memories.length;refresh()};
+sustainBtn.onclick=()=>{sustain=!sustain;sustainBtn.classList.toggle('active',sustain)};
+humanBtn.onclick=()=>{softQ=!softQ;humanBtn.classList.toggle('active',softQ);humanBtn.textContent=softQ?'SOFT Q':'HARD Q'};
+stopBtn.onclick=()=>{memory=[];document.getElementById('state').textContent='STOPPED'};
+clearBtn.onclick=()=>{memory=[]};
 
-buildKeyboard(document.getElementById("keyboardA"));
-buildKeyboard(document.getElementById("keyboardB"));
+recBtn.onclick=async()=>{
+ ensureAudio();
+ if(!recording){
+  chunks=[];
+  let options={};
+  if(MediaRecorder.isTypeSupported('audio/webm;codecs=opus'))options.mimeType='audio/webm;codecs=opus';
+  recorder=new MediaRecorder(recDest.stream,options);
+  recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};
+  recorder.onstop=()=>{document.getElementById('saveBtn').disabled=false};
+  recorder.start(); recording=true; recBtn.classList.add('rec-on'); recBtn.innerHTML='<span class="recDot"></span>STOP REC';
+ }else{
+  recorder.stop(); recording=false; recBtn.classList.remove('rec-on'); recBtn.innerHTML='<span class="recDot"></span>REC';
+ }
+};
+saveBtn.onclick=()=>{
+ if(!chunks.length)return;
+ const type=chunks[0].type||'audio/webm'; const blob=new Blob(chunks,{type});
+ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='pocket-chord-take.webm'; a.click();
+ setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+};
 
-document.getElementById("waveBtn").addEventListener("click",()=>{
-  waveIndex = (waveIndex + 1) % waveTypes.length;
-  document.getElementById("waveBtn").textContent =
-    "WAVE: " + waveTypes[waveIndex].toUpperCase();
-});
-
-document.getElementById("holdBtn").addEventListener("click",(e)=>{
-  hold = !hold;
-  e.currentTarget.textContent = "HOLD: " + (hold ? "ON" : "OFF");
-  e.currentTarget.classList.toggle("on",hold);
-  if(!hold) stopAll();
-});
-
-document.getElementById("panicBtn").addEventListener("click",()=>{
-  hold = false;
-  const hb = document.getElementById("holdBtn");
-  hb.textContent = "HOLD: OFF";
-  hb.classList.remove("on");
-  stopAll();
-});
-</script>
-</body>
-</html>
+let beat=0; setInterval(()=>{
+ const dots=[...document.querySelectorAll('.dot')]; dots.forEach((d,i)=>d.classList.toggle('on',i===beat%4)); beat++;
+},(60/bpm)*1000);
+refresh();
+</script></body></html>
