@@ -31,9 +31,23 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-acti
   pointer-events:none;transition:opacity .35s ease;
 }
 #version{position:absolute;left:14px;bottom:8px;font-size:9px;color:#44505a;pointer-events:none}
+#selectors{
+  flex:0 0 auto;
+  display:grid;grid-template-columns:1fr 1.6fr;gap:10px;
+  padding:8px 14px 6px;background:#0d1216;border-top:1px solid #151d23;
+}
+.sel{
+  display:flex;justify-content:space-between;align-items:center;
+  border:1px solid #26313a;border-radius:8px;padding:9px 10px;
+  font-size:10px;letter-spacing:.07em;color:var(--muted);
+}
+.sel button{
+  appearance:none;border:0;background:transparent;color:var(--text);
+  font:inherit;letter-spacing:.07em;padding:0;margin:0;min-width:44px;text-align:right;
+}
 #controls{
   flex:0 0 auto;display:grid;grid-template-columns:repeat(3,1fr);gap:10px;
-  padding:12px 14px 14px;border-top:1px solid #182028;background:#0e1317;
+  padding:10px 14px 14px;border-top:1px solid #182028;background:#0e1317;
 }
 .ctl .row{display:flex;justify-content:space-between;margin-bottom:7px;font-size:10px;letter-spacing:.07em;color:var(--muted)}
 .ctl .value{color:var(--text)}
@@ -49,9 +63,15 @@ input[type=range]::-webkit-slider-thumb{
 <div id="top"><div>RADIAL INSTRUMENT</div><div id="status">TOUCH TO START</div></div>
 <div id="stage">
   <canvas id="c"></canvas>
-  <div id="hint">touch anywhere<br>inner area blooms into several notes</div>
-  <div id="version">PROTO 0.2</div>
+  <div id="hint">touch anywhere<br>hold bass to wake the other layers</div>
+  <div id="version">PROTO 0.3</div>
 </div>
+
+<div id="selectors">
+  <div class="sel"><span>ROOT</span><button id="rootBtn">C</button></div>
+  <div class="sel"><span>SCALE</span><button id="scaleBtn">MINOR</button></div>
+</div>
+
 <div id="controls">
   <div class="ctl"><div class="row"><span>ECHO</span><span class="value" id="echoVal">0</span></div><input id="echo" type="range" min="0" max="100" value="0"></div>
   <div class="ctl"><div class="row"><span>HALL</span><span class="value" id="hallVal">10</span></div><input id="hall" type="range" min="0" max="100" value="10"></div>
@@ -64,6 +84,7 @@ const canvas=document.getElementById('c'), g=canvas.getContext('2d'), stage=docu
 const status=document.getElementById('status'), hint=document.getElementById('hint');
 const echo=document.getElementById('echo'), hall=document.getElementById('hall'), vol=document.getElementById('vol');
 const echoVal=document.getElementById('echoVal'), hallVal=document.getElementById('hallVal'), volVal=document.getElementById('volVal');
+const rootBtn=document.getElementById('rootBtn'), scaleBtn=document.getElementById('scaleBtn');
 
 const N=24;
 const layers=[
@@ -72,27 +93,40 @@ const layers=[
  {name:'BELL', color:'#6fd2b9'},
  {name:'AIR',  color:'#74c8db'}
 ];
-const fifthCycle=[0,7,2,9,4,11,6,1,8,3,10,5];
-const pitchClasses=Array.from({length:N},(_,i)=>fifthCycle[i%12]);
 
+const ROOTS=[
+  ['C',0],['C#',1],['D',2],['Eb',3],['E',4],['F',5],
+  ['F#',6],['G',7],['Ab',8],['A',9],['Bb',10],['B',11]
+];
+const SCALES=[
+  ['CHROMATIC',[0,1,2,3,4,5,6,7,8,9,10,11]],
+  ['MAJOR',[0,2,4,5,7,9,11]],
+  ['MINOR',[0,2,3,5,7,8,10]],
+  ['PENTA',[0,2,4,7,9]],
+  ['DORIAN',[0,2,3,5,7,9,10]]
+];
+
+let rootIndex=0, scaleIndex=2;
 let dpr=1,W=0,H=0,cx=0,cy=0,R=0;
 let audio,master,dry,delay,feedback,echoWet,convolver,hallWet;
 let started=false;
 const activePointers=new Map();
+const holdTimers=new Map();
 const energy=Array.from({length:4},()=>Array(N).fill(0));
+const nervePulse=Array(170).fill(0);
 
-/* deterministic little rays: visual satellites between the 24 main spokes */
 let seed=73191;
 function rnd(){ seed=(seed*1664525+1013904223)>>>0; return seed/4294967296; }
 const satellites=Array.from({length:170},()=>{
   const sector=Math.floor(rnd()*N);
   const jitter=(rnd()-.5)*(Math.PI*2/N)*.92;
   const angle=-Math.PI/2+sector*(Math.PI*2/N)+jitter;
-  const start=.13+rnd()*.47;
-  const length=.06+rnd()*.28;
+  const start=.12+rnd()*.50;
+  const length=.05+rnd()*.30;
   const width=.35+rnd()*.65;
-  const alpha=.16+rnd()*.28;
-  return {sector,angle,start,length,width,alpha};
+  const alpha=.14+rnd()*.25;
+  const targetLayer=Math.max(0,Math.min(3,Math.floor((start+rnd()*.15)*4)));
+  return {sector,angle,start,length,width,alpha,targetLayer};
 });
 
 function resize(){
@@ -142,11 +176,25 @@ function updateFX(){
  master.gain.setTargetAtTime(v*.95,now,.02);
 }
 function midiFreq(m){return 440*Math.pow(2,(m-69)/12)}
+
+function scaleDegrees(){
+  const root=ROOTS[rootIndex][1];
+  return SCALES[scaleIndex][1].map(v=>(root+v)%12);
+}
+function pitchClassForSector(sector){
+  const notes=scaleDegrees();
+  const idx=((sector%N)+N)%N;
+  return notes[idx % notes.length];
+}
+function octaveLiftForSector(sector){
+  const notes=scaleDegrees();
+  const idx=((sector%N)+N)%N;
+  return Math.floor(idx/notes.length)*12;
+}
 function midiFor(layer,sector){
- const pc=pitchClasses[(sector+N)%N];
+ const pc=pitchClassForSector(sector);
  const base=[2,4,5,5][layer];
- const octaveLift=((sector+N)%N)>=12?12:0;
- return 12*(base+1)+pc+octaveLift;
+ return 12*(base+1)+pc+octaveLiftForSector(sector);
 }
 
 function synth(layer,sector,velocity=.8){
@@ -176,7 +224,41 @@ function synth(layer,sector,velocity=.8){
    src.connect(bp);bp.connect(out);
    out.gain.linearRampToValueAtTime(.065*velocity,now+.003);out.gain.exponentialRampToValueAtTime(.0008,now+.27);src.start(now);
  }
- energy[layer][(sector+N)%N]=Math.max(energy[layer][(sector+N)%N],velocity);
+ energy[layer][((sector%N)+N)%N]=Math.max(energy[layer][((sector%N)+N)%N],velocity);
+}
+
+function pulseNerves(sector,amount=.8){
+  satellites.forEach((s,i)=>{
+    const d=Math.min((s.sector-sector+N)%N,(sector-s.sector+N)%N);
+    if(d<=2 && Math.random()<.55) nervePulse[i]=Math.max(nervePulse[i],amount*(1-d*.25));
+  });
+}
+
+function resonanceFromBass(sector, strength=1){
+  // Harmonic spill: fifth-ish and third-ish destinations, but always mapped through the chosen scale.
+  const candidates=[
+    {layer:1,off:1,p:.78,vel:.48},
+    {layer:1,off:-1,p:.46,vel:.34},
+    {layer:2,off:2,p:.50,vel:.34},
+    {layer:2,off:4,p:.30,vel:.26},
+    {layer:3,off:0,p:.36,vel:.22},
+    {layer:3,off:3,p:.25,vel:.18}
+  ];
+  candidates.forEach(c=>{
+    if(Math.random()<c.p*strength){
+      const ss=sector+c.off;
+      synth(c.layer,ss,c.vel*strength);
+      pulseNerves(ss,.55*strength);
+    }
+  });
+}
+
+function resonanceFromOther(layer,sector){
+  if(layer===1 && Math.random()<.28){
+    synth(2,sector+1,.22); pulseNerves(sector+1,.35);
+  }else if(layer===2 && Math.random()<.18){
+    synth(3,sector+2,.16); pulseNerves(sector+2,.25);
+  }
 }
 
 function locate(clientX,clientY){
@@ -190,28 +272,42 @@ function locate(clientX,clientY){
  return {x,y,dist,radial,sector,layer};
 }
 
-function chordShape(hit){
- /* The closer to the center, the less precise the instrument becomes, intentionally. */
- let offsets, velocities;
- if(hit.radial<.22){
-   offsets=[-2,-1,0,1,2]; velocities=[.28,.48,1,.48,.28];
- }else if(hit.radial<.43){
-   offsets=[-1,0,1]; velocities=[.38,1,.38];
- }else{
-   offsets=[0]; velocities=[1];
- }
- /* inner core also leaks upward into the next timbre layer */
- const result=[];
- offsets.forEach((off,i)=>result.push({layer:hit.layer,sector:hit.sector+off,vel:velocities[i]}));
- if(hit.radial<.25){
-   result.push({layer:Math.min(3,hit.layer+1),sector:hit.sector,vel:.34});
- }
- return result;
+function localBloom(hit){
+ let offsets,velocities;
+ if(hit.radial<.22){ offsets=[-2,-1,0,1,2]; velocities=[.24,.42,1,.42,.24]; }
+ else if(hit.radial<.43){ offsets=[-1,0,1]; velocities=[.34,1,.34]; }
+ else { offsets=[0]; velocities=[1]; }
+
+ offsets.forEach((off,i)=>synth(hit.layer,hit.sector+off,velocities[i]));
+ if(hit.radial<.25) synth(Math.min(3,hit.layer+1),hit.sector,.28);
+
+ if(hit.layer===0) resonanceFromBass(hit.sector,.72);
+ else resonanceFromOther(hit.layer,hit.sector);
+ pulseNerves(hit.sector,.8);
 }
 
 async function triggerHit(hit){
  const ok=await ensureAudio(); if(!ok)return;
- chordShape(hit).forEach(n=>synth(n.layer,n.sector,n.vel));
+ localBloom(hit);
+}
+
+function beginHold(id,hit){
+  clearInterval(holdTimers.get(id));
+  const startedAt=performance.now();
+  const timer=setInterval(()=>{
+    const p=activePointers.get(id);
+    if(!p || p.hit.layer!==0) return;
+    const elapsed=(performance.now()-startedAt)/1000;
+    const strength=Math.min(1.15,.32+elapsed*.22);
+    resonanceFromBass(p.hit.sector,strength);
+    pulseNerves(p.hit.sector,.45+Math.min(.5,elapsed*.1));
+  },430);
+  holdTimers.set(id,timer);
+}
+function endHold(id){
+  const t=holdTimers.get(id);
+  if(t) clearInterval(t);
+  holdTimers.delete(id);
 }
 
 function handlePoint(id,x,y){
@@ -222,7 +318,10 @@ function handlePoint(id,x,y){
  if(!last||last.key!==key){
    triggerHit(hit);
    activePointers.set(id,{key,hit});
- }else activePointers.set(id,{key,hit});
+   if(hit.layer===0) beginHold(id,hit); else endHold(id);
+ }else{
+   activePointers.set(id,{key,hit});
+ }
 }
 
 canvas.addEventListener('pointerdown',e=>{
@@ -235,42 +334,44 @@ canvas.addEventListener('pointermove',e=>{
  e.preventDefault();
  if(activePointers.has(e.pointerId))handlePoint(e.pointerId,e.clientX,e.clientY);
 },{passive:false});
-['pointerup','pointercancel','pointerleave'].forEach(ev=>canvas.addEventListener(ev,e=>activePointers.delete(e.pointerId)));
+['pointerup','pointercancel','pointerleave'].forEach(ev=>canvas.addEventListener(ev,e=>{
+  activePointers.delete(e.pointerId); endHold(e.pointerId);
+}));
 
 function ringR(i){return R*(.12+i*.225)}
 function draw(){
  g.clearRect(0,0,W,H);g.fillStyle='#090c0f';g.fillRect(0,0,W,H);
  g.save();g.translate(cx,cy);
 
- /* quiet layer circles */
  for(let i=1;i<=4;i++){
    g.beginPath();g.arc(0,0,ringR(i),0,Math.PI*2);g.strokeStyle='#182129';g.lineWidth=.8*dpr;g.stroke();
  }
 
- /* small randomized rays, denser and shorter than the main 24 */
- satellites.forEach(s=>{
+ satellites.forEach((s,i)=>{
    const u=Math.cos(s.angle),v=Math.sin(s.angle);
    const a=R*s.start,b=R*Math.min(1.02,s.start+s.length);
-   const pulse=energy[Math.min(3,Math.floor(s.start*4))][s.sector]||0;
+   const pulse=nervePulse[i];
    g.beginPath();g.moveTo(u*a,v*a);g.lineTo(u*b,v*b);
-   g.strokeStyle=pulse>.08?layers[Math.min(3,Math.floor(s.start*4))].color:'#6b5937';
-   g.globalAlpha=s.alpha+pulse*.45;g.lineWidth=(s.width+pulse*.8)*dpr;g.lineCap='round';g.stroke();g.globalAlpha=1;
+   g.strokeStyle=pulse>.05?layers[s.targetLayer].color:'#6b5937';
+   g.globalAlpha=s.alpha+pulse*.62;g.lineWidth=(s.width+pulse*1.4)*dpr;g.lineCap='round';
+   if(pulse>.15){ g.shadowColor=g.strokeStyle; g.shadowBlur=10*dpr*pulse; }
+   g.stroke();g.shadowBlur=0;g.globalAlpha=1;
+   nervePulse[i]*=.93;
  });
 
- /* 24 main spokes */
  for(let s=0;s<N;s++){
    const a=-Math.PI/2+s*Math.PI*2/N,u=Math.cos(a),v=Math.sin(a);
    const maxE=Math.max(...energy.map(row=>row[s]));
    g.beginPath();g.moveTo(u*R*.08,v*R*.08);g.lineTo(u*R*1.02,v*R*1.02);
-   g.strokeStyle=maxE>.03?layers[energy.map(r=>r[s]).indexOf(maxE)].color:'#9b7c42';
-   g.globalAlpha=.28+maxE*.72;g.lineWidth=(1.0+1.3*maxE)*dpr;g.lineCap='round';
+   const bestLayer=energy.map(r=>r[s]).indexOf(maxE);
+   g.strokeStyle=maxE>.03?layers[bestLayer].color:'#9b7c42';
+   g.globalAlpha=.27+maxE*.73;g.lineWidth=(1.0+1.25*maxE)*dpr;g.lineCap='round';
    if(maxE>.15){g.shadowColor=g.strokeStyle;g.shadowBlur=9*dpr*maxE}
    g.stroke();g.shadowBlur=0;g.globalAlpha=1;
 
    for(let l=0;l<4;l++)energy[l][s]*=.955;
  }
 
- /* central glowing ambiguity field */
  const grad=g.createRadialGradient(0,0,0,0,0,R*.24);
  grad.addColorStop(0,'rgba(239,201,102,.88)');
  grad.addColorStop(.30,'rgba(208,164,68,.32)');
@@ -284,6 +385,17 @@ function draw(){
  g.restore();requestAnimationFrame(draw);
 }
 draw();
+
+function cycleRoot(){
+  rootIndex=(rootIndex+1)%ROOTS.length;
+  rootBtn.textContent=ROOTS[rootIndex][0];
+}
+function cycleScale(){
+  scaleIndex=(scaleIndex+1)%SCALES.length;
+  scaleBtn.textContent=SCALES[scaleIndex][0];
+}
+rootBtn.addEventListener('click',e=>{e.preventDefault();cycleRoot();});
+scaleBtn.addEventListener('click',e=>{e.preventDefault();cycleScale();});
 
 [echo,hall,vol].forEach(sl=>sl.addEventListener('input',()=>{
  echoVal.textContent=echo.value;hallVal.textContent=hall.value;volVal.textContent=vol.value;updateFX();
